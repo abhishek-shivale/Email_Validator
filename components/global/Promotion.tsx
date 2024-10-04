@@ -2,8 +2,12 @@ import React from "react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { poppins, rubikMonoOne } from "@/app/layout";
+import { Rubik_Mono_One } from "next/font/google";
 
+export const rubikMonoOne = Rubik_Mono_One({
+  weight: "400",
+  subsets: ["latin"],
+});
 function Promotion() {
   return (
     <div className="w-ful py-20 text-white">
@@ -13,7 +17,7 @@ function Promotion() {
         Join Our Launch!
       </h2>
       <p
-        className={`${poppins.className} antialiased text-center text-sm mb-8`}
+        className={` antialiased text-center text-sm mb-8`}
       >
         Were excited to announce the launch of our new bulk email validation
         feature, soon!

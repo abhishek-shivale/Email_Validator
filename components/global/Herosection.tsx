@@ -10,13 +10,18 @@ import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import Header from "@/components/global/Header";
-import { rubikMonoOne } from "@/app/layout";
+import { Rubik_Mono_One } from "next/font/google";
+
+export const rubikMonoOne = Rubik_Mono_One({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 function HeroSection() {
   return (
     <div className="w-full h-screen relative">
       <Header />
-      <div className="absolute inset-x-0 top-[5px] z-10 h-full overflow-hidden text-white opacity-10 [mask-image:linear-gradient(to_top,transparent,white)]">
+      <div className="absolute inset-0  top-[5px] z-10 h-screen overflow-hidden text-white opacity-20 [mask-image:linear-gradient(to_top,transparent,white)]">
         <svg
           className="absolute inset-0 top-0 h-full w-full text-white"
           xmlns="http://www.w3.org/2000/svg"

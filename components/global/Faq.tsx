@@ -1,6 +1,11 @@
-import { rubikMonoOne } from "@/app/layout";
+import { Rubik_Mono_One } from "next/font/google";
 import { questions } from "@/lib/utils";
 import React from "react";
+
+export const rubikMonoOne = Rubik_Mono_One({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 function Faq() {
   return (

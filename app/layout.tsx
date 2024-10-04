@@ -1,18 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Rubik_Mono_One, Poppins} from "next/font/google";
+import {  Poppins} from "next/font/google";
 
 
 
-export const poppins =  Poppins({
+const poppins =  Poppins({
   weight: "400",
   subsets: ["latin"],
 });
 
-export const rubikMonoOne = Rubik_Mono_One({
-  weight: "400",
-  subsets: ["latin"],
-});
+
 
 export const metadata: Metadata = {
   title: "Free Email Validation Tool",
