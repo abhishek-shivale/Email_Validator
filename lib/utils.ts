@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export const questions = [
@@ -28,11 +28,39 @@ export const questions = [
   },
   {
     question: "5. Can I use email validation for free?",
-    answer: "Yes, email validation is completely free for everyone. You can always use it at no cost.",
+    answer:
+      "Yes, email validation is completely free for everyone. You can always use it at no cost.",
   },
   {
     question: "6. How can I check bulk email validation?",
-    answer: "Our bulk email validation feature is currently under development and will be available soon. Stay tuned for updates!"
-  }
-
+    answer:
+      "Our bulk email validation feature is currently under development and will be available soon. Stay tuned for updates!",
+  },
 ];
+
+export interface responseType {
+  valid: boolean,
+  reason: string,
+  validators: {
+    regex: {
+      valid: boolean,
+      reason: string,
+    },
+    typo:{
+      valid: boolean,
+      reason: string,
+    },
+    disposable: {
+      valid: boolean,
+      reason: string,
+    },
+    mx: {
+      valid: boolean,
+      reason: string,
+    },
+    smtp: {
+      valid: boolean,
+      reason: string,
+    },
+  },
+};
