@@ -15,7 +15,6 @@ export async function ValidateEmail(email:string) {
 const SPREADSHEET_ID = '1yTjCn83-0p2I3mG4KJTq60Yo1T68IWt9DtThVqZL7Tc';
 
 import { google } from 'googleapis'
-import key from './value.json' // Path to your service account JSON file
 
 
 
