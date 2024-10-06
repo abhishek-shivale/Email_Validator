@@ -1,140 +1,140 @@
-// "use server";
-// const KICKBOX_API_BASE_URL = "https://open.kickbox.com/v1/disposable/";
-// import dns from "node:dns";
-// import util from "util";
-// import net from "node:net";
+import dns from 'dns';
+import net from 'net';
+import axios from 'axios';
+import Mailcheck from 'mailcheck';
 
-// const promisify = util.promisify;
-// const resolveMx = promisify(dns.resolveMx);
+interface ValidationResult {
+  valid: boolean;
+  reason: string | null;
+}
 
-// export async function checkEmail(email: string) {
-//   const res = {
-//     valid: true,
-//     reason: "All validations passed",
-//     validators: {
-//       regex: {
-//         valid: true,
-//         reason: "Passed",
-//       },
-//       disposable: {
-//         valid: true,
-//         reason: "Passed",
-//       },
-//       mx: {
-//         valid: true,
-//         reason: "Passed",
-//       },
-//       smtp: {
-//         valid: true,
-//         reason: "Passed",
-//       },
-//     },
-//   };
+interface ValidatorResults {
+  regex: ValidationResult;
+  typo: ValidationResult;
+  disposable: ValidationResult;
+  mx: ValidationResult;
+  smtp: ValidationResult;
+}
 
-//   // Step 1: Regex validation
-//   if (!checkEmailRegex(email)) {
-//     res.valid = false;
-//     res.reason = "Invalid Email";
-//     res.validators.regex.valid = false;
-//     res.validators.regex.reason = "Invalid Email";
-//   }
+interface Suggestion {
+  full: string;
+}
+class EnhancedEmailValidator {
+  private emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-//   if (await isDisposableEmail(email)) {
-//     res.valid = false;
-//     res.reason = "Disposable Email";
-//     res.validators.disposable.valid = false;
-//     res.validators.disposable.reason = "Disposable Email";
-//   }
+  async validate(email: string): Promise<{ valid: boolean; validators: ValidatorResults; reason: string | null }> {
+    const [, domain] = email.split('@');
 
-//   const mxRecord = await getBestMx(email);
-//   if (!mxRecord) {
-//     res.valid = false;
-//     res.reason = "No MX Record";
-//     res.validators.mx.valid = false;
-//     res.validators.mx.reason = "No MX Record";
-//     res.validators.smtp.valid = false;
-//     res.validators.smtp.reason = "SMTP Error";
-//   } else {
-//     const isSmtpValid = await checkEmailSmtp(mxRecord.exchange);
-//     if (!isSmtpValid) {
-//       res.valid = false;
-//       res.reason = "SMTP Error";
-//       res.validators.smtp.valid = false;
-//       res.validators.smtp.reason = "SMTP Error";
-//     }
-//   }
+    const [regex, typo, disposable, mx] = await Promise.all([
+      this.checkRegex(email),
+      this.checkTypo(email),
+      this.checkDisposable(email),
+      this.checkMx(domain)
+    ]);
 
-//   return res;
-// }
+    let smtp: ValidationResult = { valid: false, reason: 'SMTP check not performed' };
+    if (mx.valid) {
+      const bestMxRecord = await this.getBestMxRecord(domain);
+      if (bestMxRecord) {
+        smtp = await this.checkSmtp(bestMxRecord);
+      } else {
+        smtp = { valid: false, reason: 'No valid MX records found' };
+      }
+    }
 
-// function checkEmailRegex(email: string): boolean {
-//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//   return emailRegex.test(email);
-// }
+    const validators: ValidatorResults = { regex, typo, disposable, mx, smtp };
+    const valid = Object.values(validators).every(v => v.valid);
+    const reason = valid ? null : Object.entries(validators).find(([, v]) => !v.valid)?.[0] || null;
 
-// async function isDisposableEmail(email: string): Promise<boolean> {
-//   try {
-//     const response = await fetch(`${KICKBOX_API_BASE_URL}${email}`);
-//     const result = await response.json();
-//     return result.disposable;
-//   } catch (error) {
-//     console.error("Error checking disposable email:", error);
-//     return false;
-//   }
-// }
+    return { valid, validators, reason };
+  }
 
-// async function checkEmailMxRecord(domain: string): Promise<dns.MxRecord[]> {
-//   try {
-//     const mxRecords = await resolveMx(domain);
-//     if (mxRecords.length > 0) {
-//       return mxRecords;
-//     }
-//   } catch (error) {
-//     console.error("Error resolving MX record:", error);
-//   }
-//   return [];
-// }
+  private checkRegex(email: string): ValidationResult {
+    return {
+      valid: this.emailRegex.test(email),
+      reason: this.emailRegex.test(email) ? null : 'Invalid email format'
+    };
+  }
 
-// async function getBestMx(email: string): Promise<dns.MxRecord | null> {
-//   const domain = email.split("@")[1];
-//   const addresses = await checkEmailMxRecord(domain);
+  private checkTypo(email: string): Promise<ValidationResult> {
+    return new Promise((resolve) => {
+      Mailcheck.run({
+        email,
+        suggested: (suggestion: Suggestion) => resolve({
+          valid: !suggestion,
+          reason: suggestion ? `Possible typo. Did you mean ${suggestion.full}?` : null
+        }),
+        empty: () => resolve({ valid: true, reason: null })
+      });
+    });
+  }
 
-//   if (addresses.length === 0) return null;
+  private async checkDisposable(email: string): Promise<ValidationResult> {
+    try {
+      const { data } = await axios.get<{ disposable: boolean }>(`https://open.kickbox.com/v1/disposable/${email}`);
+      return {
+        valid: !data.disposable,
+        reason: data.disposable ? 'Disposable email detected' : null
+      };
+    } catch (error) {
+      console.error('Error checking disposable email:', error);
+      return { valid: true, reason: 'Unable to check if disposable' };
+    }
+  }
 
-//   let bestRecord = addresses[0];
-//   for (let i = 1; i < addresses.length; i++) {
-//     if (addresses[i].priority < bestRecord.priority) {
-//       bestRecord = addresses[i];
-//     }
-//   }
-//   return bestRecord;
-// }
+  private async checkMx(domain: string): Promise<ValidationResult> {
+    return new Promise((resolve) => {
+      dns.resolveMx(domain, (error, addresses) => {
+        if (error) {
+          resolve({ valid: false, reason: `MX check failed: ${error.message}` });
+        } else {
+          resolve({ valid: addresses.length > 0, reason: addresses.length > 0 ? null : 'No MX records found' });
+        }
+      });
+    });
+  }
 
-// async function checkEmailSmtp(exchange: string): Promise<boolean> {
-//   return new Promise((resolve) => {
-//     const timeout = 10000; // 10 seconds
-//     const server = net.createConnection({ host: exchange, port: 25 });
+  private async getBestMxRecord(domain: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      dns.resolveMx(domain, (error, addresses) => {
+        if (error || !addresses || addresses.length === 0) {
+          resolve(null);
+        } else {
+          const sortedMx = addresses.sort((a, b) => a.priority - b.priority);
+          resolve(sortedMx[0].exchange);
+        }
+      });
+    });
+  }
 
-//     server.setEncoding("ascii");
-//     server.setTimeout(timeout);
+  private checkSmtp(mxRecord: string): Promise<ValidationResult> {
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(50000000);
 
-//     server.on("connect", () => {
-//       console.log("SMTP server is available");
-//       server.write("quit\r\n");
-//       server.end();
-//       resolve(true);
-//     });
+      socket.connect(25, mxRecord, () => {
+        socket.destroy();
+        console.log('SMTP connection successful', mxRecord);
+        resolve({ valid: true, reason: null });
+      });
 
-//     server.on("error", (err) => {
-//       console.error("SMTP server is unavailable:", err.message);
-//       server.end();
-//       resolve(false);
-//     });
+      socket.on('error', (error) => {
+        socket.destroy();
+        resolve({ valid: false, reason: `SMTP connection failed: ${error.message}` });
+      });
 
-//     server.on("timeout", () => {
-//       console.error("SMTP server check timed out");
-//       server.end();
-//       resolve(false);
-//     });
-//   });
-// }
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve({ valid: false, reason: 'SMTP connection timed out' });
+      });
+    });
+  }
+}
+
+export async function validateEmails(email: string): Promise<{ valid: boolean;
+  validators: ValidatorResults;
+  reason: string | null}> {
+  const validator = new EnhancedEmailValidator();
+  const result = await validator.validate(email);
+  return result;
+}

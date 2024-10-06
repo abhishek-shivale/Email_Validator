@@ -105,7 +105,7 @@ export default function Component({ result, email }: Props) {
     { label: "Deliverable", data: result?.validators?.smtp },
   ];
 
-  const isValid = result?.valid ?? false;
+  const isValid = result?.valid === true ? true : false;
   const statusColor = isValid ? "text-green-600" : "text-red-600";
   const statusBg = isValid ? "bg-green-100" : "bg-red-100";
 
